@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 18px;
+  }
+
+  @media (max-width: 640px) {
+    html {
+      font-size: 16px;
+    }
+  }
+
+  ::selection {
+    background-color: rgba(0, 0, 0, 0.08);
+  }
+}
+
+@layer components {
+  .prose-report {
+    @apply text-neutral-800 leading-relaxed;
+  }
+
+  .prose-report h1 {
+    @apply text-2xl font-normal mb-8 pb-4 border-b border-neutral-200;
+  }
+
+  .prose-report h2 {
+    @apply text-lg font-medium mt-12 mb-4 text-neutral-900;
+  }
+
+  .prose-report h2:first-of-type {
+    @apply mt-0;
+  }
+
+  .prose-report p {
+    @apply mb-4;
+  }
+
+  .prose-report ul, .prose-report ol {
+    @apply mb-4 pl-6;
+  }
+
+  .prose-report li {
+    @apply mb-2;
+  }
+
+  .prose-report ul li {
+    @apply list-disc;
+  }
+
+  .prose-report ol li {
+    @apply list-decimal;
+  }
+
+  .prose-report strong {
+    @apply font-medium;
+  }
+
+  .prose-report blockquote {
+    @apply pl-4 border-l-2 border-neutral-300 italic text-neutral-600 my-4;
+  }
+}

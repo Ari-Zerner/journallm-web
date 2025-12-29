@@ -1,0 +1,5 @@
+# Keep test data
+!test-data/
+
+# Auto-generated
+next-env.d.ts

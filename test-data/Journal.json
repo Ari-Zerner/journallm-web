@@ -1,0 +1,44 @@
+{
+  "entries": [
+    {
+      "creationDate": "2024-12-20T08:30:00Z",
+      "modifiedDate": "2024-12-20T08:35:00Z",
+      "text": "Started the morning with a good workout. Feeling energized but a bit anxious about the presentation at work tomorrow. Need to finish the slides tonight.\n\nHad coffee with Sarah - she mentioned a new book on productivity that sounded interesting. Should look it up.",
+      "location": {
+        "address": "San Francisco, CA"
+      }
+    },
+    {
+      "creationDate": "2024-12-21T22:15:00Z",
+      "modifiedDate": "2024-12-21T22:20:00Z",
+      "text": "The presentation went better than expected! Got positive feedback from the team. Mark suggested I should consider leading the next project phase.\n\nFeeling a mix of relief and excitement. Maybe I've been underestimating myself.\n\nNote to self: call Mom this weekend, haven't talked in two weeks.",
+      "location": {
+        "address": "San Francisco, CA"
+      }
+    },
+    {
+      "creationDate": "2024-12-23T19:00:00Z",
+      "modifiedDate": "2024-12-23T19:10:00Z",
+      "text": "Lazy Sunday. Slept in, made pancakes. Read for a few hours.\n\nBeen thinking about the project lead opportunity. Part of me wants to go for it, but I'm worried about the extra hours. Already feeling stretched thin between work and trying to maintain some semblance of a social life.\n\nDidn't call Mom. Will do it tomorrow for sure.",
+      "location": {
+        "address": "San Francisco, CA"
+      }
+    },
+    {
+      "creationDate": "2024-12-25T10:00:00Z",
+      "modifiedDate": "2024-12-25T10:30:00Z",
+      "text": "Christmas morning. Finally called Mom - she was so happy to hear from me. Felt guilty for putting it off. She mentioned Dad's been having trouble with his knee again.\n\nSpent the day at Jake and Emma's place. Good food, good company. Their kid is getting so big.\n\nNew Year's resolution forming: be more intentional about staying connected with family.",
+      "location": {
+        "address": "Oakland, CA"
+      }
+    },
+    {
+      "creationDate": "2024-12-27T21:45:00Z",
+      "modifiedDate": "2024-12-27T21:50:00Z",
+      "text": "Back to work tomorrow. Decided to tell Mark I'm interested in the project lead role. Worst case, I learn something. Best case, it's a step forward.\n\nGoals for next year:\n- Exercise 3x per week (not just when I feel like it)\n- Call family weekly\n- Read 2 books per month\n- Actually use my vacation days\n\nFeeling cautiously optimistic about 2025.",
+      "location": {
+        "address": "San Francisco, CA"
+      }
+    }
+  ]
+}

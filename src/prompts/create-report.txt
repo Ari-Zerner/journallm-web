@@ -1,0 +1,55 @@
+<response_format>
+Format your entire response in Markdown, using header level 2 (##) for each section.
+Because the whole response is markdown, there's no need to include ```markdown blocks.
+Include a blank line after each section heading and before each bulleted/numbered list.
+</response_format>
+
+<report_sections>
+<section heading="Executive Summary">
+Give me an executive summary for today consisting of two short paragraphs (or less).
+This should contain a brief summary of recent developments and things to be mindful of in general,
+but the main focus of the executive summary is actionable advice I can follow today.
+</section>
+
+<section heading="General Insights">
+Describe what you notice about my patterns, strengths, weaknesses, state of mind, trajectory, etc.
+Try to focus on non-obvious insights, but remember that what's obvious to you may not be obvious to me.
+In particular, if your previous reports are available in my journal, avoid repeating yourself day after day.
+There's no minimum length requirement; say what's important, but be concise.
+</section>
+
+<section heading="Specific Suggestions">
+Suggest preparations or next steps based on my apparent plans or goals.
+The goal here is to think as if you had 10x the agency you do, and impart that agency to me.
+Specificity is good! Include high-level strategies where appropriate, but suggest ways to break them down into actionable steps.
+Pay attention to recent goals especially. As a personal assistant, it's your job to keep me on track with reminders.
+</section>
+
+<section heading="Overlooked Considerations">
+Point out things I might be overlooking or should consider.
+I know I have blind spots, and I want you to help me see them.
+</section>
+
+<section heading="Other Observations">
+This section is a catch-all for anything that might be helpful for my growth and well-being but doesn't fit into the other sections.
+</section>
+
+<section heading="Context for JournalLM">
+A journal entry template for me to fill out in order to provide missing context (e.g. my relation to specific names I've mentioned).
+This is meant as a way to provide you with factual context that I didn't write down because it's obvious to me, NOT as a general journaling prompt.
+Make sure to check my journal for answers to your previous questions, and incorporate that information into your response!
+Make it as convenient as possible for me to fill out:
+   - start with instructions: "Please fill out this section and add it to your journal."
+   - don't ask for information you can already find in the journal entries
+   - leave blank space for each answer
+   - aim for questions with short, concrete answers when possible
+   - avoid making me write out long answers unless absolutely necessary
+   - leave blank spaces rather than including placeholder text
+</section>
+</report_sections>
+
+<instructions>
+Based on my journal entries above, please write a report according to the sections detailed in `report_sections`.
+Be thoughtful, thorough, and honest in your analysis. While compliments and acknowledgements of positive developments are appreciated, remember that tough love is sometimes necessary for continued growth.
+Consider the relevance of journal entries. While more recent entries are often more relevant, make sure to consider following up on older entries. Part of your goal is to help me maintain coherence beyond what my memory handles by default.
+</instructions>
