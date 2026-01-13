@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { extractJournal } from "@/lib/journal-extractor.client";
 
@@ -99,6 +99,13 @@ export default function Home() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }, [report]);
+
+  // Auto-download report when ready
+  useEffect(() => {
+    if (status === "done" && report) {
+      handleDownload();
+    }
+  }, [status, report, handleDownload]);
 
   const handleReset = useCallback(() => {
     setStatus("idle");
