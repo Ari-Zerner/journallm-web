@@ -167,9 +167,19 @@ export default function Home() {
         <div className="space-y-8">
           {/* API Key */}
           <div>
-            <label className="block font-sans text-sm text-neutral-500 mb-2">
-              Anthropic API key
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="font-sans text-sm text-neutral-500">
+                Anthropic API key
+              </label>
+              <a
+                href="https://console.anthropic.com/settings/keys"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-sans text-sm text-neutral-400 hover:text-neutral-600 transition-colors"
+              >
+                Get one
+              </a>
+            </div>
             <input
               type="password"
               value={apiKey}
