@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Source_Serif_4, Inter } from "next/font/google";
+import { SessionProvider } from "@/components/SessionProvider";
 import "./globals.css";
 
 const serif = Source_Serif_4({
@@ -27,7 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${serif.variable} ${sans.variable}`}>
       <body className="font-serif bg-white text-neutral-800 min-h-screen">
-        {children}
+        <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
   );

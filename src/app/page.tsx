@@ -1,21 +1,27 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import ReactMarkdown from "react-markdown";
 import { extractJournal } from "@/lib/journal-extractor.client";
+import { AuthButton } from "@/components/AuthButton";
 
 type Status = "idle" | "extracting" | "processing" | "done" | "error";
 
 const ACCEPTED_TYPES = ".zip,.json,.xml,.md,.txt";
 
 export default function Home() {
+  const { data: session, status: authStatus } = useSession();
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
+  const [settingsSaved, setSettingsSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const initialLoadDone = useRef(false);
 
   const handleSubmit = useCallback(async () => {
     if (!file) {
@@ -107,6 +113,51 @@ export default function Home() {
     }
   }, [status, report, handleDownload]);
 
+  // Load settings from Google Drive when authenticated
+  useEffect(() => {
+    if (authStatus === "authenticated" && session?.accessToken && !initialLoadDone.current) {
+      initialLoadDone.current = true;
+      setIsLoadingSettings(true);
+      fetch("/api/drive/settings")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((settings) => {
+          if (settings?.anthropicApiKey) {
+            setApiKey(settings.anthropicApiKey);
+            setSettingsSaved(true);
+          }
+        })
+        .catch(console.error)
+        .finally(() => setIsLoadingSettings(false));
+    }
+    // Reset when signed out
+    if (authStatus === "unauthenticated") {
+      initialLoadDone.current = false;
+      setSettingsSaved(false);
+    }
+  }, [authStatus, session?.accessToken]);
+
+  // Save API key to Google Drive when it changes (debounced)
+  useEffect(() => {
+    if (authStatus !== "authenticated" || !apiKey.trim() || isLoadingSettings) {
+      return;
+    }
+
+    setSettingsSaved(false);
+    const timer = setTimeout(() => {
+      fetch("/api/drive/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anthropicApiKey: apiKey }),
+      })
+        .then((res) => {
+          if (res.ok) setSettingsSaved(true);
+        })
+        .catch(console.error);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [apiKey, authStatus, isLoadingSettings]);
+
   const handleReset = useCallback(() => {
     setStatus("idle");
     setError(null);
@@ -156,6 +207,10 @@ export default function Home() {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      <div className="absolute top-4 right-4">
+        <AuthButton />
+      </div>
+
       <div className="max-w-md w-full py-16">
         <header className="mb-16 text-center">
           <h1 className="text-3xl mb-4">JournalLM</h1>
@@ -171,23 +226,36 @@ export default function Home() {
               <label className="font-sans text-sm text-neutral-500">
                 Anthropic API key
               </label>
-              <a
-                href="https://console.anthropic.com/settings/keys"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-sans text-sm text-neutral-400 hover:text-neutral-600 transition-colors"
-              >
-                Get one
-              </a>
+              <div className="flex items-center gap-3">
+                {authStatus === "authenticated" && settingsSaved && (
+                  <span className="font-sans text-xs text-green-600">
+                    Saved
+                  </span>
+                )}
+                <a
+                  href="https://console.anthropic.com/settings/keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-sans text-sm text-neutral-400 hover:text-neutral-600 transition-colors"
+                >
+                  Get one
+                </a>
+              </div>
             </div>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="sk-ant-..."
-              disabled={isWorking}
-              className="w-full px-0 py-2 bg-transparent border-0 border-b border-neutral-200 focus:border-neutral-400 focus:ring-0 outline-none transition-colors placeholder:text-neutral-300"
-            />
+            {isLoadingSettings ? (
+              <div className="py-2 text-sm text-neutral-400">
+                Loading saved key...
+              </div>
+            ) : (
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="sk-ant-..."
+                disabled={isWorking}
+                className="w-full px-0 py-2 bg-transparent border-0 border-b border-neutral-200 focus:border-neutral-400 focus:ring-0 outline-none transition-colors placeholder:text-neutral-300"
+              />
+            )}
           </div>
 
           {/* File selection */}
