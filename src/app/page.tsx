@@ -6,7 +6,6 @@ import ReactMarkdown from "react-markdown";
 import { extractJournal } from "@/lib/journal-extractor.client";
 import { AuthButton } from "@/components/AuthButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { SaveToggle } from "@/components/SaveToggle";
 import { ReportsDrawer } from "@/components/ReportsDrawer";
 
 type Status = "idle" | "extracting" | "processing" | "done" | "error";
@@ -33,7 +32,6 @@ export default function Home() {
   const [dragOver, setDragOver] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
-  const [saveToCloud, setSaveToCloud] = useState(true);
   const [reportSaved, setReportSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -82,8 +80,8 @@ export default function Home() {
       setReportId(newReportId);
       setStatus("done");
 
-      // Auto-save to Drive if toggle is on and authenticated
-      if (isAuthenticated && saveToCloud) {
+      // Auto-save to Drive if authenticated
+      if (isAuthenticated) {
         setIsSaving(true);
         try {
           const saveRes = await fetch("/api/drive/reports", {
@@ -109,7 +107,7 @@ export default function Home() {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setStatus("error");
     }
-  }, [file, apiKey, isAuthenticated, saveToCloud]);
+  }, [file, apiKey, isAuthenticated]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -143,11 +141,13 @@ export default function Home() {
 
   const handleDownload = useCallback(() => {
     if (!report) return;
+    const title = extractReportTitle(report);
+    const filename = `${title.replace(/[^a-z0-9]/gi, "-").toLowerCase()}.md`;
     const blob = new Blob([report], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `journal-insights-${new Date().toISOString().split("T")[0]}.md`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -208,9 +208,6 @@ export default function Home() {
             setApiKey(settings.anthropicApiKey);
             setSettingsSaved(true);
           }
-          if (settings?.saveReportsToDrive !== undefined) {
-            setSaveToCloud(settings.saveReportsToDrive);
-          }
         })
         .catch(console.error)
         .finally(() => setIsLoadingSettings(false));
@@ -219,7 +216,6 @@ export default function Home() {
     if (authStatus === "unauthenticated") {
       initialLoadDone.current = false;
       setSettingsSaved(false);
-      setSaveToCloud(true);
     }
   }, [authStatus, session?.accessToken]);
 
@@ -240,7 +236,6 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           anthropicApiKey: apiKey,
-          saveReportsToDrive: saveToCloud,
         }),
       })
         .then((res) => {
@@ -250,7 +245,7 @@ export default function Home() {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [apiKey, saveToCloud, authStatus, isLoadingSettings]);
+  }, [apiKey, authStatus, isLoadingSettings]);
 
   const handleReset = useCallback(() => {
     setStatus("idle");
@@ -305,7 +300,24 @@ export default function Home() {
   if (status === "done" && report) {
     return (
       <div className="min-h-screen">
+        <div className="absolute top-4 right-4 flex items-center gap-4">
+          <ThemeToggle />
+          {isAuthenticated && (
+            <button
+              onClick={() => setDrawerOpen(true)}
+              className="text-sm text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors"
+            >
+              My Reports
+            </button>
+          )}
+          <AuthButton />
+        </div>
+
         <div className="max-w-2xl mx-auto px-6 py-16 md:py-24">
+          <header className="mb-12 text-center">
+            <h1 className="text-3xl mb-4">JournaLens</h1>
+          </header>
+
           {/* Top action bar */}
           <div className="mb-8 pb-4 border-b border-neutral-200 dark:border-neutral-700">
             <ActionBar />
@@ -320,6 +332,13 @@ export default function Home() {
             <ActionBar />
           </footer>
         </div>
+
+        {/* Reports drawer */}
+        <ReportsDrawer
+          isOpen={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          onViewReport={handleViewReport}
+        />
       </div>
     );
   }
@@ -439,11 +458,6 @@ export default function Home() {
             )}
           </div>
 
-          {/* Save to Drive toggle - only for authenticated users */}
-          {isAuthenticated && !isWorking && (
-            <SaveToggle enabled={saveToCloud} onChange={setSaveToCloud} />
-          )}
-
           {/* Submit button */}
           {!isWorking && (
             <button
@@ -460,6 +474,16 @@ export default function Home() {
             >
               Generate insights
             </button>
+          )}
+
+          {/* Sign-in benefits for unauthenticated users */}
+          {!isAuthenticated && !isWorking && (
+            <div className="text-center text-sm text-neutral-500 dark:text-neutral-400 py-4 border border-neutral-200 dark:border-neutral-700 rounded">
+              <p className="mb-1">Sign in to save your API key and reports</p>
+              <p className="text-xs text-neutral-400 dark:text-neutral-500">
+                Reports are stored privately in your Google Drive
+              </p>
+            </div>
           )}
 
           {/* Error */}
