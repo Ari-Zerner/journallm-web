@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
 import ReactMarkdown from "react-markdown";
 import { extractJournal } from "@/lib/journal-extractor.client";
 import { AuthButton } from "@/components/AuthButton";
@@ -479,7 +479,15 @@ export default function Home() {
           {/* Sign-in benefits for unauthenticated users */}
           {!isAuthenticated && !isWorking && (
             <div className="text-center text-sm text-neutral-500 dark:text-neutral-400 py-4 border border-neutral-200 dark:border-neutral-700 rounded">
-              <p className="mb-1">Sign in to save your API key and reports</p>
+              <p className="mb-1">
+                <button
+                  onClick={() => signIn("google")}
+                  className="underline hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors"
+                >
+                  Sign in
+                </button>
+                {" "}to save your API key and reports
+              </p>
               <p className="text-xs text-neutral-400 dark:text-neutral-500">
                 Reports are stored privately in your Google Drive
               </p>
