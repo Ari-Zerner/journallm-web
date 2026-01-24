@@ -17,7 +17,7 @@ const sans = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "JournalLM",
+  title: "JournaLens",
   description: "Insights from your journal",
 };
 

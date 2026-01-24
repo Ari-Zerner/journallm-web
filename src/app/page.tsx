@@ -215,7 +215,7 @@ export default function Home() {
 
       <div className="max-w-md w-full py-16">
         <header className="mb-16 text-center">
-          <h1 className="text-3xl mb-4">JournalLM</h1>
+          <h1 className="text-3xl mb-4">JournaLens</h1>
           <p className="text-neutral-500 dark:text-neutral-400">
             Upload your journal and receive thoughtful insights.
           </p>
@@ -328,7 +328,7 @@ export default function Home() {
 
         <footer className="mt-16 text-center">
           <p className="text-sm text-neutral-400 dark:text-neutral-500">
-            Accepts Day One exports (.zip, .json) or plain text (.xml, .md,
+            Accepts Day One exports (.zip) or plain text (.json, .xml, .md,
             .txt)
           </p>
         </footer>

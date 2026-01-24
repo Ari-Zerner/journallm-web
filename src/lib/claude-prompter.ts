@@ -64,7 +64,7 @@ export async function getReport(
       "...older entries truncated...\n\n" + journalXml.slice(truncationIndex);
   }
 
-  const assistantPrefill = `# JournalLM Advice for ${formatDate()}`;
+  const assistantPrefill = `# JournaLens Advice for ${formatDate()}`;
 
   const response = await client.messages.create({
     model: MODEL,
