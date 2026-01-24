@@ -33,6 +33,7 @@ export async function PUT(request: Request) {
     const settings: UserSettings = {
       version: 1,
       anthropicApiKey: body.anthropicApiKey,
+      saveReportsToDrive: body.saveReportsToDrive,
     };
 
     await saveSettings(session.accessToken, settings);

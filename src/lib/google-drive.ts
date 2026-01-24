@@ -5,6 +5,7 @@ const SETTINGS_FILE_NAME = "settings.json";
 export interface UserSettings {
   version: 1;
   anthropicApiKey?: string;
+  saveReportsToDrive?: boolean;
 }
 
 function getDriveClient(accessToken: string) {

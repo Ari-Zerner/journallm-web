@@ -6,23 +6,42 @@ import ReactMarkdown from "react-markdown";
 import { extractJournal } from "@/lib/journal-extractor.client";
 import { AuthButton } from "@/components/AuthButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { SaveToggle } from "@/components/SaveToggle";
+import { ReportsDrawer } from "@/components/ReportsDrawer";
 
 type Status = "idle" | "extracting" | "processing" | "done" | "error";
 
 const ACCEPTED_TYPES = ".zip,.json,.xml,.md,.txt";
+
+function generateReportId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function extractReportTitle(content: string): string {
+  const match = content.match(/^#\s+(.+)$/m);
+  return match ? match[1] : "JournaLens Report";
+}
 
 export default function Home() {
   const { data: session, status: authStatus } = useSession();
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<string | null>(null);
+  const [reportId, setReportId] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
+  const [saveToCloud, setSaveToCloud] = useState(true);
+  const [reportSaved, setReportSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [viewingPastReport, setViewingPastReport] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialLoadDone = useRef(false);
+
+  const isAuthenticated = authStatus === "authenticated";
 
   const handleSubmit = useCallback(async () => {
     if (!file) {
@@ -36,6 +55,8 @@ export default function Home() {
     }
 
     setError(null);
+    setReportSaved(false);
+    setViewingPastReport(false);
 
     try {
       // Extract journal content client-side
@@ -56,13 +77,39 @@ export default function Home() {
         throw new Error(data.error || "Something went wrong");
       }
 
+      const newReportId = generateReportId();
       setReport(data.report);
+      setReportId(newReportId);
       setStatus("done");
+
+      // Auto-save to Drive if toggle is on and authenticated
+      if (isAuthenticated && saveToCloud) {
+        setIsSaving(true);
+        try {
+          const saveRes = await fetch("/api/drive/reports", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: newReportId,
+              createdAt: new Date().toISOString(),
+              title: extractReportTitle(data.report),
+              content: data.report,
+            }),
+          });
+          if (saveRes.ok) {
+            setReportSaved(true);
+          }
+        } catch {
+          console.error("Failed to save report to Drive");
+        } finally {
+          setIsSaving(false);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setStatus("error");
     }
-  }, [file, apiKey]);
+  }, [file, apiKey, isAuthenticated, saveToCloud]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -107,12 +154,47 @@ export default function Home() {
     URL.revokeObjectURL(url);
   }, [report]);
 
-  // Auto-download report when ready
-  useEffect(() => {
-    if (status === "done" && report) {
-      handleDownload();
+  const handleSaveToCloud = useCallback(async () => {
+    if (!report || !reportId || !isAuthenticated) return;
+
+    setIsSaving(true);
+    try {
+      const saveRes = await fetch("/api/drive/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: reportId,
+          createdAt: new Date().toISOString(),
+          title: extractReportTitle(report),
+          content: report,
+        }),
+      });
+      if (saveRes.ok) {
+        setReportSaved(true);
+      } else {
+        throw new Error("Failed to save");
+      }
+    } catch {
+      alert("Failed to save report to Google Drive");
+    } finally {
+      setIsSaving(false);
     }
-  }, [status, report, handleDownload]);
+  }, [report, reportId, isAuthenticated]);
+
+  const handleViewReport = useCallback(async (id: string) => {
+    try {
+      const res = await fetch(`/api/drive/reports/${id}`);
+      if (!res.ok) throw new Error("Failed to fetch report");
+      const data = await res.json();
+      setReport(data.content);
+      setReportId(data.id);
+      setReportSaved(true);
+      setViewingPastReport(true);
+      setStatus("done");
+    } catch {
+      alert("Failed to load report");
+    }
+  }, []);
 
   // Load settings from Google Drive when authenticated
   useEffect(() => {
@@ -126,6 +208,9 @@ export default function Home() {
             setApiKey(settings.anthropicApiKey);
             setSettingsSaved(true);
           }
+          if (settings?.saveReportsToDrive !== undefined) {
+            setSaveToCloud(settings.saveReportsToDrive);
+          }
         })
         .catch(console.error)
         .finally(() => setIsLoadingSettings(false));
@@ -134,12 +219,17 @@ export default function Home() {
     if (authStatus === "unauthenticated") {
       initialLoadDone.current = false;
       setSettingsSaved(false);
+      setSaveToCloud(true);
     }
   }, [authStatus, session?.accessToken]);
 
-  // Save API key to Google Drive when it changes (debounced)
+  // Save settings to Google Drive when they change (debounced)
   useEffect(() => {
-    if (authStatus !== "authenticated" || !apiKey.trim() || isLoadingSettings) {
+    if (authStatus !== "authenticated" || isLoadingSettings) {
+      return;
+    }
+
+    if (!apiKey.trim()) {
       return;
     }
 
@@ -148,7 +238,10 @@ export default function Home() {
       fetch("/api/drive/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ anthropicApiKey: apiKey }),
+        body: JSON.stringify({
+          anthropicApiKey: apiKey,
+          saveReportsToDrive: saveToCloud,
+        }),
       })
         .then((res) => {
           if (res.ok) setSettingsSaved(true);
@@ -157,38 +250,74 @@ export default function Home() {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [apiKey, authStatus, isLoadingSettings]);
+  }, [apiKey, saveToCloud, authStatus, isLoadingSettings]);
 
   const handleReset = useCallback(() => {
     setStatus("idle");
     setError(null);
     setReport(null);
+    setReportId(null);
+    setReportSaved(false);
+    setViewingPastReport(false);
     setFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
+
+  // Action bar component for report view
+  const ActionBar = () => (
+    <div className="flex items-center justify-between font-sans text-sm text-neutral-500 dark:text-neutral-400">
+      <button
+        onClick={handleReset}
+        className="hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors"
+      >
+        Start over
+      </button>
+      <div className="flex items-center gap-4">
+        {isAuthenticated && (
+          reportSaved ? (
+            <span className="text-green-600 dark:text-green-500 flex items-center gap-1">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Saved to Drive
+            </span>
+          ) : (
+            <button
+              onClick={handleSaveToCloud}
+              disabled={isSaving}
+              className="hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors disabled:opacity-50"
+            >
+              {isSaving ? "Saving..." : "Save to Drive"}
+            </button>
+          )
+        )}
+        <button
+          onClick={handleDownload}
+          className="hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors"
+        >
+          Download
+        </button>
+      </div>
+    </div>
+  );
 
   // Report view
   if (status === "done" && report) {
     return (
       <div className="min-h-screen">
         <div className="max-w-2xl mx-auto px-6 py-16 md:py-24">
+          {/* Top action bar */}
+          <div className="mb-8 pb-4 border-b border-neutral-200 dark:border-neutral-700">
+            <ActionBar />
+          </div>
+
           <article className="prose-report">
             <ReactMarkdown>{report}</ReactMarkdown>
           </article>
 
-          <footer className="mt-16 pt-8 border-t border-neutral-200 dark:border-neutral-700 flex items-center justify-between font-sans text-sm text-neutral-500 dark:text-neutral-400">
-            <button
-              onClick={handleReset}
-              className="hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors"
-            >
-              Start over
-            </button>
-            <button
-              onClick={handleDownload}
-              className="hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors"
-            >
-              Save as file
-            </button>
+          {/* Bottom action bar */}
+          <footer className="mt-16 pt-8 border-t border-neutral-200 dark:border-neutral-700">
+            <ActionBar />
           </footer>
         </div>
       </div>
@@ -210,6 +339,14 @@ export default function Home() {
     >
       <div className="absolute top-4 right-4 flex items-center gap-4">
         <ThemeToggle />
+        {isAuthenticated && (
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="text-sm text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors"
+          >
+            My Reports
+          </button>
+        )}
         <AuthButton />
       </div>
 
@@ -229,7 +366,7 @@ export default function Home() {
                 Claude API key
               </label>
               <div className="flex items-center gap-3">
-                {authStatus === "authenticated" && settingsSaved && (
+                {isAuthenticated && settingsSaved && (
                   <span className="font-sans text-xs text-green-600 dark:text-green-500">
                     Saved
                   </span>
@@ -302,6 +439,11 @@ export default function Home() {
             )}
           </div>
 
+          {/* Save to Drive toggle - only for authenticated users */}
+          {isAuthenticated && !isWorking && (
+            <SaveToggle enabled={saveToCloud} onChange={setSaveToCloud} />
+          )}
+
           {/* Submit button */}
           {!isWorking && (
             <button
@@ -333,6 +475,13 @@ export default function Home() {
           </p>
         </footer>
       </div>
+
+      {/* Reports drawer */}
+      <ReportsDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onViewReport={handleViewReport}
+      />
     </div>
   );
 }
