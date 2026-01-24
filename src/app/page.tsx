@@ -226,7 +226,7 @@ export default function Home() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="font-sans text-sm text-neutral-500 dark:text-neutral-400">
-                Anthropic API key
+                Claude API key
               </label>
               <div className="flex items-center gap-3">
                 {authStatus === "authenticated" && settingsSaved && (
