@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import ReactMarkdown from "react-markdown";
 import { extractJournal } from "@/lib/journal-extractor.client";
 import { AuthButton } from "@/components/AuthButton";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 type Status = "idle" | "extracting" | "processing" | "done" | "error";
 
@@ -175,16 +176,16 @@ export default function Home() {
             <ReactMarkdown>{report}</ReactMarkdown>
           </article>
 
-          <footer className="mt-16 pt-8 border-t border-neutral-200 flex items-center justify-between font-sans text-sm text-neutral-500">
+          <footer className="mt-16 pt-8 border-t border-neutral-200 dark:border-neutral-700 flex items-center justify-between font-sans text-sm text-neutral-500 dark:text-neutral-400">
             <button
               onClick={handleReset}
-              className="hover:text-neutral-800 transition-colors"
+              className="hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors"
             >
               Start over
             </button>
             <button
               onClick={handleDownload}
-              className="hover:text-neutral-800 transition-colors"
+              className="hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors"
             >
               Save as file
             </button>
@@ -201,20 +202,21 @@ export default function Home() {
   return (
     <div
       className={`min-h-screen flex items-center justify-center px-6 transition-colors ${
-        dragOver ? "bg-neutral-50" : ""
+        dragOver ? "bg-neutral-50 dark:bg-neutral-800" : ""
       }`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div className="absolute top-4 right-4">
+      <div className="absolute top-4 right-4 flex items-center gap-4">
+        <ThemeToggle />
         <AuthButton />
       </div>
 
       <div className="max-w-md w-full py-16">
         <header className="mb-16 text-center">
           <h1 className="text-3xl mb-4">JournalLM</h1>
-          <p className="text-neutral-500">
+          <p className="text-neutral-500 dark:text-neutral-400">
             Upload your journal and receive thoughtful insights.
           </p>
         </header>
@@ -223,12 +225,12 @@ export default function Home() {
           {/* API Key */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="font-sans text-sm text-neutral-500">
+              <label className="font-sans text-sm text-neutral-500 dark:text-neutral-400">
                 Anthropic API key
               </label>
               <div className="flex items-center gap-3">
                 {authStatus === "authenticated" && settingsSaved && (
-                  <span className="font-sans text-xs text-green-600">
+                  <span className="font-sans text-xs text-green-600 dark:text-green-500">
                     Saved
                   </span>
                 )}
@@ -236,7 +238,7 @@ export default function Home() {
                   href="https://console.anthropic.com/settings/keys"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-sans text-sm text-neutral-400 hover:text-neutral-600 transition-colors"
+                  className="font-sans text-sm text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
                 >
                   Get one
                 </a>
@@ -253,7 +255,7 @@ export default function Home() {
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder="sk-ant-..."
                 disabled={isWorking}
-                className="w-full px-0 py-2 bg-transparent border-0 border-b border-neutral-200 focus:border-neutral-400 focus:ring-0 outline-none transition-colors placeholder:text-neutral-300"
+                className="w-full px-0 py-2 bg-transparent border-0 border-b border-neutral-200 dark:border-neutral-700 focus:border-neutral-400 dark:focus:border-neutral-500 focus:ring-0 outline-none transition-colors placeholder:text-neutral-300 dark:placeholder:text-neutral-600"
               />
             )}
           </div>
@@ -271,12 +273,12 @@ export default function Home() {
 
             {isWorking ? (
               <div className="py-8 text-center">
-                <p className="text-neutral-500 mb-2">
+                <p className="text-neutral-500 dark:text-neutral-400 mb-2">
                   {status === "extracting"
                     ? "Reading journal..."
                     : "Generating insights..."}
                 </p>
-                <p className="text-sm text-neutral-400">
+                <p className="text-sm text-neutral-400 dark:text-neutral-500">
                   {status === "extracting"
                     ? "Extracting entries from your export"
                     : "This takes a minute or two"}
@@ -287,8 +289,8 @@ export default function Home() {
                 onClick={() => fileInputRef.current?.click()}
                 className={`
                   w-full py-4 border border-dashed rounded transition-colors text-center
-                  border-neutral-300 hover:border-neutral-400 hover:bg-neutral-50
-                  ${dragOver ? "border-neutral-400 bg-neutral-50" : ""}
+                  border-neutral-300 dark:border-neutral-600 hover:border-neutral-400 dark:hover:border-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800
+                  ${dragOver ? "border-neutral-400 dark:border-neutral-500 bg-neutral-50 dark:bg-neutral-800" : ""}
                 `}
               >
                 {dragOver
@@ -309,8 +311,8 @@ export default function Home() {
                 w-full py-3 rounded font-sans text-sm transition-colors
                 ${
                   isReady
-                    ? "bg-neutral-800 text-white hover:bg-neutral-700"
-                    : "bg-neutral-100 text-neutral-400 cursor-not-allowed"
+                    ? "bg-neutral-800 dark:bg-neutral-200 text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-300"
+                    : "bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 cursor-not-allowed"
                 }
               `}
             >
@@ -320,12 +322,12 @@ export default function Home() {
 
           {/* Error */}
           {error && (
-            <p className="text-sm text-red-600 text-center">{error}</p>
+            <p className="text-sm text-red-600 dark:text-red-400 text-center">{error}</p>
           )}
         </div>
 
         <footer className="mt-16 text-center">
-          <p className="text-sm text-neutral-400">
+          <p className="text-sm text-neutral-400 dark:text-neutral-500">
             Accepts Day One exports (.zip, .json) or plain text (.xml, .md,
             .txt)
           </p>

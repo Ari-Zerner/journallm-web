@@ -18,19 +18,23 @@
   ::selection {
     background-color: rgba(0, 0, 0, 0.08);
   }
+
+  .dark ::selection {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
 }
 
 @layer components {
   .prose-report {
-    @apply text-neutral-800 leading-relaxed;
+    @apply text-neutral-800 leading-relaxed dark:text-neutral-200;
   }
 
   .prose-report h1 {
-    @apply text-2xl font-normal mb-8 pb-4 border-b border-neutral-200;
+    @apply text-2xl font-normal mb-8 pb-4 border-b border-neutral-200 dark:border-neutral-700;
   }
 
   .prose-report h2 {
-    @apply text-lg font-medium mt-12 mb-4 text-neutral-900;
+    @apply text-lg font-medium mt-12 mb-4 text-neutral-900 dark:text-neutral-100;
   }
 
   .prose-report h2:first-of-type {
@@ -62,6 +66,6 @@
   }
 
   .prose-report blockquote {
-    @apply pl-4 border-l-2 border-neutral-300 italic text-neutral-600 my-4;
+    @apply pl-4 border-l-2 border-neutral-300 dark:border-neutral-600 italic text-neutral-600 dark:text-neutral-400 my-4;
   }
 }

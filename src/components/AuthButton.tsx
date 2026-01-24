@@ -7,7 +7,7 @@ export function AuthButton() {
 
   if (status === "loading") {
     return (
-      <div className="w-8 h-8 rounded-full bg-neutral-100 animate-pulse" />
+      <div className="w-8 h-8 rounded-full bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
     );
   }
 
@@ -15,7 +15,7 @@ export function AuthButton() {
     return (
       <button
         onClick={() => signOut()}
-        className="flex items-center gap-2 text-sm text-neutral-500 hover:text-neutral-800 transition-colors"
+        className="flex items-center gap-2 text-sm text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors"
       >
         {session.user.image && (
           <img
@@ -32,7 +32,7 @@ export function AuthButton() {
   return (
     <button
       onClick={() => signIn("google")}
-      className="text-sm text-neutral-500 hover:text-neutral-800 transition-colors"
+      className="text-sm text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors"
     >
       Sign in with Google
     </button>
