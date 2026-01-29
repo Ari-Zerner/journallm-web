@@ -22,12 +22,29 @@ function loadPrompts() {
 
 
 /**
+ * Build custom topics section if any topics are provided
+ */
+function buildCustomTopicsPrompt(topics: string[]): string {
+  if (topics.length === 0) return "";
+
+  const topicSections = topics
+    .map(
+      (topic, i) =>
+        `<section heading="Custom Topic: ${topic}">\nAddress this specific question or topic based on my journal entries. Provide thoughtful analysis and actionable advice.\n</section>`
+    )
+    .join("\n\n");
+
+  return `\n\n<custom_topics>\nThe user has requested that you address the following specific topics in addition to the standard report sections. Add these as separate sections BEFORE the "Context for JournaLens" section:\n\n${topicSections}\n</custom_topics>`;
+}
+
+/**
  * Generate a report from journal entries using Claude
  */
 export async function getReport(
   journalXml: string,
   apiKey: string,
-  formattedDate: string
+  formattedDate: string,
+  customTopics: string[] = []
 ): Promise<string> {
   loadPrompts();
 
@@ -53,13 +70,15 @@ export async function getReport(
   }
 
   const assistantPrefill = `# JournaLens Advice for ${formattedDate}`;
+  const customTopicsPrompt = buildCustomTopicsPrompt(customTopics);
+  const fullPrompt = reportPrompt + customTopicsPrompt;
 
   const response = await client.messages.create({
     model: MODEL,
     system: systemPrompt,
     messages: [
       { role: "user", content: `<journal>\n${processedJournal}\n</journal>` },
-      { role: "user", content: reportPrompt },
+      { role: "user", content: fullPrompt },
       { role: "assistant", content: assistantPrefill },
     ],
     max_tokens: MAX_OUTPUT_TOKENS,

@@ -36,6 +36,8 @@ export default function Home() {
   const [isSaving, setIsSaving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [viewingPastReport, setViewingPastReport] = useState(false);
+  const [customTopics, setCustomTopics] = useState<string[]>([]);
+  const [newTopic, setNewTopic] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialLoadDone = useRef(false);
 
@@ -72,7 +74,7 @@ export default function Home() {
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ journal: journalContent, apiKey, formattedDate }),
+        body: JSON.stringify({ journal: journalContent, apiKey, formattedDate, customTopics }),
       });
 
       const data = await response.json();
@@ -113,7 +115,7 @@ export default function Home() {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setStatus("error");
     }
-  }, [file, apiKey, isAuthenticated]);
+  }, [file, apiKey, isAuthenticated, customTopics]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -463,6 +465,68 @@ export default function Home() {
               </button>
             )}
           </div>
+
+          {/* Custom topics */}
+          {!isWorking && (
+            <div>
+              <label className="font-sans text-sm text-neutral-500 dark:text-neutral-400 mb-2 block">
+                Custom topics (optional)
+              </label>
+              <p className="text-xs text-neutral-400 dark:text-neutral-500 mb-3">
+                Add specific questions or topics you want addressed in the report
+              </p>
+
+              {customTopics.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {customTopics.map((topic, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300 bg-neutral-50 dark:bg-neutral-800 rounded px-3 py-2"
+                    >
+                      <span className="flex-1">{topic}</span>
+                      <button
+                        onClick={() => setCustomTopics(customTopics.filter((_, i) => i !== index))}
+                        className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newTopic}
+                  onChange={(e) => setNewTopic(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newTopic.trim()) {
+                      e.preventDefault();
+                      setCustomTopics([...customTopics, newTopic.trim()]);
+                      setNewTopic("");
+                    }
+                  }}
+                  placeholder="e.g., How can I improve my sleep habits?"
+                  className="flex-1 px-3 py-2 text-sm bg-transparent border border-neutral-200 dark:border-neutral-700 rounded focus:border-neutral-400 dark:focus:border-neutral-500 focus:ring-0 outline-none transition-colors placeholder:text-neutral-300 dark:placeholder:text-neutral-600"
+                />
+                <button
+                  onClick={() => {
+                    if (newTopic.trim()) {
+                      setCustomTopics([...customTopics, newTopic.trim()]);
+                      setNewTopic("");
+                    }
+                  }}
+                  disabled={!newTopic.trim()}
+                  className="px-3 py-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded hover:bg-neutral-50 dark:hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Submit button */}
           {!isWorking && (
