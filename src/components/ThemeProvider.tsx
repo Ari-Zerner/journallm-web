@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
+import { useSession } from "next-auth/react";
 
 type Theme = "light" | "dark";
 
@@ -16,7 +17,7 @@ export function useTheme() {
   if (!context) {
     // Return default values during SSR
     return {
-      theme: "light" as Theme,
+      theme: "dark" as Theme,
       setTheme: () => {},
     };
   }
@@ -24,17 +25,19 @@ export function useTheme() {
 }
 
 function getSystemTheme(): Theme {
-  if (typeof window === "undefined") return "light";
+  if (typeof window === "undefined") return "dark";
   return window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("light");
+  const { data: session, status } = useSession();
+  const [theme, setThemeState] = useState<Theme>("dark");
   const [mounted, setMounted] = useState(false);
+  const loadedFromServer = useRef(false);
 
-  // Load saved theme or use system preference on mount
+  // Load saved theme on mount
   useEffect(() => {
     const saved = localStorage.getItem("theme") as Theme | null;
     if (saved && ["light", "dark"].includes(saved)) {
@@ -44,6 +47,26 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
     setMounted(true);
   }, []);
+
+  // Fetch theme from Redis when authenticated
+  useEffect(() => {
+    if (status === "authenticated" && !loadedFromServer.current) {
+      loadedFromServer.current = true;
+      fetch("/api/preferences")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((prefs) => {
+          if (prefs?.theme && ["light", "dark"].includes(prefs.theme)) {
+            setThemeState(prefs.theme);
+            localStorage.setItem("theme", prefs.theme);
+          }
+        })
+        .catch(console.error);
+    }
+    // Reset when signed out
+    if (status === "unauthenticated") {
+      loadedFromServer.current = false;
+    }
+  }, [status]);
 
   // Apply theme to document
   useEffect(() => {
@@ -59,6 +82,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
     localStorage.setItem("theme", newTheme);
+
+    // Save to Redis if authenticated
+    if (status === "authenticated") {
+      fetch("/api/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: newTheme }),
+      }).catch(console.error);
+    }
   };
 
   if (!mounted) {
