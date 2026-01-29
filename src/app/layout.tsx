@@ -45,9 +45,9 @@ export default function RootLayout({
         />
       </head>
       <body className="font-serif bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 min-h-screen transition-colors">
-        <ThemeProvider>
-          <SessionProvider>{children}</SessionProvider>
-        </ThemeProvider>
+        <SessionProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </SessionProvider>
       </body>
     </html>
   );
