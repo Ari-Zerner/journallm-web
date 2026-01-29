@@ -37,6 +37,7 @@ export default function Home() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [viewingPastReport, setViewingPastReport] = useState(false);
   const [customTopics, setCustomTopics] = useState<string[]>([]);
+  const [customTopicsOnly, setCustomTopicsOnly] = useState(false);
   const [newTopic, setNewTopic] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialLoadDone = useRef(false);
@@ -74,7 +75,7 @@ export default function Home() {
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ journal: journalContent, apiKey, formattedDate, customTopics }),
+        body: JSON.stringify({ journal: journalContent, apiKey, formattedDate, customTopics, customTopicsOnly }),
       });
 
       const data = await response.json();
@@ -115,7 +116,7 @@ export default function Home() {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setStatus("error");
     }
-  }, [file, apiKey, isAuthenticated, customTopics]);
+  }, [file, apiKey, isAuthenticated, customTopics, customTopicsOnly]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -477,24 +478,35 @@ export default function Home() {
               </p>
 
               {customTopics.length > 0 && (
-                <div className="space-y-2 mb-3">
-                  {customTopics.map((topic, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300 bg-neutral-50 dark:bg-neutral-800 rounded px-3 py-2"
-                    >
-                      <span className="flex-1">{topic}</span>
-                      <button
-                        onClick={() => setCustomTopics(customTopics.filter((_, i) => i !== index))}
-                        className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+                <>
+                  <div className="space-y-2 mb-3">
+                    {customTopics.map((topic, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300 bg-neutral-50 dark:bg-neutral-800 rounded px-3 py-2"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                        <span className="flex-1">{topic}</span>
+                        <button
+                          onClick={() => setCustomTopics(customTopics.filter((_, i) => i !== index))}
+                          className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400 mb-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={customTopicsOnly}
+                      onChange={(e) => setCustomTopicsOnly(e.target.checked)}
+                      className="rounded border-neutral-300 dark:border-neutral-600 text-neutral-800 dark:text-neutral-200 focus:ring-neutral-500 dark:bg-neutral-800"
+                    />
+                    Custom topics only (skip standard report sections)
+                  </label>
+                </>
               )}
 
               <div className="flex gap-2">

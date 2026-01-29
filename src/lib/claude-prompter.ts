@@ -24,7 +24,7 @@ function loadPrompts() {
 /**
  * Build custom topics section if any topics are provided
  */
-function buildCustomTopicsPrompt(topics: string[]): string {
+function buildCustomTopicsPrompt(topics: string[], customTopicsOnly: boolean): string {
   if (topics.length === 0) return "";
 
   const topicSections = topics
@@ -33,6 +33,16 @@ function buildCustomTopicsPrompt(topics: string[]): string {
         `<section heading="Custom Topic ${i + 1}: ${topic}">\nAddress this specific question or topic based on my journal entries. Provide thoughtful analysis and actionable advice.\n</section>`
     )
     .join("\n\n");
+
+  if (customTopicsOnly) {
+    return `\n\n<custom_topics_only>
+IMPORTANT: The user has requested ONLY the following ${topics.length} custom topic(s). Do NOT include the standard report sections (Executive Summary, General Insights, etc.). ONLY address the custom topics below.
+
+${topicSections}
+
+Remember: ONLY output sections for the custom topics above. Do not include any standard report sections.
+</custom_topics_only>`;
+  }
 
   return `\n\n<custom_topics>
 IMPORTANT: The user has requested ${topics.length} custom topic(s) below. You MUST address ALL of them - do not skip any.
@@ -52,7 +62,8 @@ export async function getReport(
   journalXml: string,
   apiKey: string,
   formattedDate: string,
-  customTopics: string[] = []
+  customTopics: string[] = [],
+  customTopicsOnly: boolean = false
 ): Promise<string> {
   loadPrompts();
 
@@ -78,8 +89,9 @@ export async function getReport(
   }
 
   const assistantPrefill = `# JournaLens Advice for ${formattedDate}`;
-  const customTopicsPrompt = buildCustomTopicsPrompt(customTopics);
-  const fullPrompt = reportPrompt + customTopicsPrompt;
+  const customTopicsPrompt = buildCustomTopicsPrompt(customTopics, customTopicsOnly);
+  const basePrompt = customTopicsOnly && customTopics.length > 0 ? "" : reportPrompt;
+  const fullPrompt = basePrompt + customTopicsPrompt;
 
   const response = await client.messages.create({
     model: MODEL,

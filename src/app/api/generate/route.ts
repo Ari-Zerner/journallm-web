@@ -5,7 +5,7 @@ export const maxDuration = 300; // 5 minutes for Vercel Pro
 
 export async function POST(request: NextRequest) {
   try {
-    const { journal, apiKey: providedApiKey, formattedDate, customTopics } = await request.json();
+    const { journal, apiKey: providedApiKey, formattedDate, customTopics, customTopicsOnly } = await request.json();
 
     // Use provided API key or fall back to environment variable
     const apiKey = providedApiKey || process.env.ANTHROPIC_API_KEY;
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     // Generate report
     const topics = Array.isArray(customTopics) ? customTopics : [];
-    const report = await getReport(journal, apiKey, formattedDate, topics);
+    const report = await getReport(journal, apiKey, formattedDate, topics, !!customTopicsOnly);
 
     return NextResponse.json({ report });
   } catch (error) {
