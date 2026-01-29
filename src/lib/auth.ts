@@ -1,6 +1,43 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import type { JWT } from "next-auth/jwt";
+import { Redis } from "@upstash/redis";
+
+// Initialize Redis client (only if credentials are available)
+const redis =
+  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+    ? new Redis({
+        url: process.env.UPSTASH_REDIS_REST_URL,
+        token: process.env.UPSTASH_REDIS_REST_TOKEN,
+      })
+    : null;
+
+function getRefreshTokenKey(email: string): string {
+  return `refresh_token:${email}`;
+}
+
+async function storeRefreshToken(
+  email: string,
+  refreshToken: string
+): Promise<void> {
+  if (!redis) return;
+  try {
+    // Store with no expiration - refresh tokens are long-lived
+    await redis.set(getRefreshTokenKey(email), refreshToken);
+  } catch (error) {
+    console.error("Failed to store refresh token:", error);
+  }
+}
+
+async function getStoredRefreshToken(email: string): Promise<string | null> {
+  if (!redis) return null;
+  try {
+    return await redis.get<string>(getRefreshTokenKey(email));
+  } catch (error) {
+    console.error("Failed to retrieve refresh token:", error);
+    return null;
+  }
+}
 
 async function refreshAccessToken(token: JWT): Promise<JWT> {
   try {
@@ -19,6 +56,11 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 
     if (!response.ok) {
       throw refreshed;
+    }
+
+    // If Google returns a new refresh token, store it
+    if (refreshed.refresh_token && token.email) {
+      await storeRefreshToken(token.email as string, refreshed.refresh_token);
     }
 
     return {
@@ -43,18 +85,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           scope:
             "openid email profile https://www.googleapis.com/auth/drive.appdata",
           access_type: "offline",
-          prompt: "consent",
         },
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, account }) {
-      // Persist tokens on initial sign in
+    async jwt({ token, account, profile }) {
+      // Initial sign in
       if (account) {
         token.accessToken = account.access_token;
-        token.refreshToken = account.refresh_token;
         token.expiresAt = account.expires_at;
+        token.email = profile?.email;
+
+        // If Google returned a refresh token, store it
+        if (account.refresh_token && profile?.email) {
+          token.refreshToken = account.refresh_token;
+          await storeRefreshToken(profile.email, account.refresh_token);
+        } else if (profile?.email) {
+          // No refresh token from Google - try to retrieve stored one
+          const storedToken = await getStoredRefreshToken(profile.email);
+          if (storedToken) {
+            token.refreshToken = storedToken;
+          }
+        }
       }
 
       // Return token if not expired
