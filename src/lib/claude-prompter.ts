@@ -6,7 +6,7 @@ const MODEL = "claude-sonnet-4-5";
 const MAX_CONTEXT_TOKENS = 200000;
 const RESPONSE_BUFFER_TOKENS = 30000;
 const MAX_JOURNAL_TOKENS = MAX_CONTEXT_TOKENS - RESPONSE_BUFFER_TOKENS;
-const MAX_OUTPUT_TOKENS = 4000;
+const MAX_OUTPUT_TOKENS = 16000;
 
 // Load prompts at module level
 let systemPrompt: string;
@@ -22,19 +22,23 @@ function loadPrompts() {
 
 
 /**
- * Build custom topics section if any topics are provided
+ * Build custom topics prompt
  */
-function buildCustomTopicsPrompt(topics: string[]): string {
+function buildCustomTopicsPrompt(topics: string[], includeStandardReport: boolean): string {
   if (topics.length === 0) return "";
 
   const topicSections = topics
     .map(
       (topic, i) =>
-        `<section heading="Custom Topic: ${topic}">\nAddress this specific question or topic based on my journal entries. Provide thoughtful analysis and actionable advice.\n</section>`
+        `<section heading="Custom Topic ${i + 1}: ${topic}">\nAddress this specific question or topic based on my journal entries. Provide thoughtful analysis and actionable advice.\n</section>`
     )
     .join("\n\n");
 
-  return `\n\n<custom_topics>\nThe user has requested that you address the following specific topics in addition to the standard report sections. Add these as separate sections BEFORE the "Context for JournaLens" section:\n\n${topicSections}\n</custom_topics>`;
+  const placement = includeStandardReport
+    ? "Add these as separate sections BEFORE the \"Context for JournaLens\" section."
+    : "These are the ONLY sections to include in the report (do not include the standard report sections).";
+
+  return `\n\n<custom_topics>\nIMPORTANT: The user has requested ${topics.length} custom topic(s). You MUST address ALL of them - do not skip any.\n\n${placement}\n\n${topicSections}\n</custom_topics>`;
 }
 
 /**
@@ -44,7 +48,8 @@ export async function getReport(
   journalXml: string,
   apiKey: string,
   formattedDate: string,
-  customTopics: string[] = []
+  customTopics: string[] = [],
+  includeStandardReport: boolean = true
 ): Promise<string> {
   loadPrompts();
 
@@ -70,8 +75,22 @@ export async function getReport(
   }
 
   const assistantPrefill = `# JournaLens Advice for ${formattedDate}`;
-  const customTopicsPrompt = buildCustomTopicsPrompt(customTopics);
-  const fullPrompt = reportPrompt + customTopicsPrompt;
+  const customTopicsPrompt = buildCustomTopicsPrompt(customTopics, includeStandardReport);
+
+  // If not including standard report, use a minimal prompt
+  const basePrompt = includeStandardReport
+    ? reportPrompt
+    : `<response_format>
+Format your entire response in Markdown, using header level 2 (##) for each section.
+Include a blank line after each section heading and before each bulleted/numbered list.
+</response_format>
+
+<instructions>
+Based on my journal entries above, please address ONLY the custom topics specified below.
+Be thoughtful, thorough, and honest in your analysis.
+</instructions>`;
+
+  const fullPrompt = basePrompt + customTopicsPrompt;
 
   const response = await client.messages.create({
     model: MODEL,

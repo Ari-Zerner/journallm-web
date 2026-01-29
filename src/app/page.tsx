@@ -38,6 +38,7 @@ export default function Home() {
   const [viewingPastReport, setViewingPastReport] = useState(false);
   const [customTopics, setCustomTopics] = useState<string[]>([]);
   const [newTopic, setNewTopic] = useState("");
+  const [includeStandardReport, setIncludeStandardReport] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialLoadDone = useRef(false);
 
@@ -74,7 +75,7 @@ export default function Home() {
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ journal: journalContent, apiKey, formattedDate, customTopics }),
+        body: JSON.stringify({ journal: journalContent, apiKey, formattedDate, customTopics, includeStandardReport }),
       });
 
       const data = await response.json();
@@ -115,7 +116,7 @@ export default function Home() {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setStatus("error");
     }
-  }, [file, apiKey, isAuthenticated, customTopics]);
+  }, [file, apiKey, isAuthenticated, customTopics, includeStandardReport]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -525,6 +526,20 @@ export default function Home() {
                   Add
                 </button>
               </div>
+
+              {customTopics.length > 0 && (
+                <label className="flex items-center gap-2 mt-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeStandardReport}
+                    onChange={(e) => setIncludeStandardReport(e.target.checked)}
+                    className="w-4 h-4 rounded border-neutral-300 dark:border-neutral-600 text-neutral-800 dark:text-neutral-200 focus:ring-neutral-500"
+                  />
+                  <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                    Include standard report sections
+                  </span>
+                </label>
+              )}
             </div>
           )}
 
