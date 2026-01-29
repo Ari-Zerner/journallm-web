@@ -7,8 +7,18 @@ import { extractJournal } from "@/lib/journal-extractor.client";
 import { AuthButton } from "@/components/AuthButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ReportsDrawer } from "@/components/ReportsDrawer";
+import { estimateCost, CostEstimate, needsHierarchicalProcessing } from "@/lib/cost-estimator";
 
 type Status = "idle" | "extracting" | "processing" | "done" | "error";
+
+// Loading component for SSR
+function LoadingState() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-neutral-500 dark:text-neutral-400">Loading...</div>
+    </div>
+  );
+}
 
 const ACCEPTED_TYPES = ".zip,.json,.xml,.md,.txt";
 
@@ -23,6 +33,7 @@ function extractReportTitle(content: string): string {
 
 export default function Home() {
   const { data: session, status: authStatus } = useSession();
+  const [mounted, setMounted] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<string | null>(null);
@@ -39,10 +50,26 @@ export default function Home() {
   const [customTopics, setCustomTopics] = useState<string[]>([]);
   const [newTopic, setNewTopic] = useState("");
   const [includeStandardReport, setIncludeStandardReport] = useState(true);
+  const [journalContent, setJournalContent] = useState<string | null>(null);
+  const [costEstimate, setCostEstimate] = useState<CostEstimate | null>(null);
+  const [tierStats, setTierStats] = useState<{
+    summariesGenerated: number;
+    summariesCached: number;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialLoadDone = useRef(false);
 
+  // Handle SSR - don't render until mounted
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const isAuthenticated = authStatus === "authenticated";
+
+  // Show loading state during SSR and initial hydration
+  if (!mounted) {
+    return <LoadingState />;
+  }
 
   const handleSubmit = useCallback(async () => {
     if (!file) {
@@ -60,9 +87,13 @@ export default function Home() {
     setViewingPastReport(false);
 
     try {
-      // Extract journal content client-side
+      // Extract journal content if not already done
       setStatus("extracting");
-      const journalContent = await extractJournal(file);
+      let content = journalContent;
+      if (!content) {
+        content = await extractJournal(file);
+        setJournalContent(content);
+      }
 
       // Send extracted text to server
       setStatus("processing");
@@ -75,7 +106,7 @@ export default function Home() {
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ journal: journalContent, apiKey, formattedDate, customTopics, includeStandardReport }),
+        body: JSON.stringify({ journal: content, apiKey, formattedDate, customTopics, includeStandardReport }),
       });
 
       const data = await response.json();
@@ -88,6 +119,14 @@ export default function Home() {
       setReport(data.report);
       setReportId(newReportId);
       setStatus("done");
+
+      // Store tier stats for display
+      if (data.tierStats) {
+        setTierStats({
+          summariesGenerated: data.tierStats.summariesGenerated,
+          summariesCached: data.tierStats.summariesCached,
+        });
+      }
 
       // Auto-save to Drive if authenticated
       if (isAuthenticated) {
@@ -116,7 +155,7 @@ export default function Home() {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setStatus("error");
     }
-  }, [file, apiKey, isAuthenticated, customTopics, includeStandardReport]);
+  }, [file, apiKey, isAuthenticated, customTopics, includeStandardReport, journalContent]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -128,24 +167,41 @@ export default function Home() {
     setDragOver(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile) {
       setFile(droppedFile);
       setError(null);
+      // Extract journal immediately for cost estimation
+      try {
+        const content = await extractJournal(droppedFile);
+        setJournalContent(content);
+        setCostEstimate(estimateCost(content, isAuthenticated, 0));
+      } catch {
+        // Silent fail - will show error on submit
+      }
     }
-  }, []);
+  }, [isAuthenticated]);
 
   const handleFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files?.[0]) {
-        setFile(e.target.files[0]);
+        const selectedFile = e.target.files[0];
+        setFile(selectedFile);
         setError(null);
+        // Extract journal immediately for cost estimation
+        try {
+          const content = await extractJournal(selectedFile);
+          setJournalContent(content);
+          setCostEstimate(estimateCost(content, isAuthenticated, 0));
+        } catch {
+          // Silent fail - will show error on submit
+        }
       }
     },
-    []
+    [isAuthenticated]
   );
 
   const handleDownload = useCallback(() => {
@@ -264,8 +320,18 @@ export default function Home() {
     setReportSaved(false);
     setViewingPastReport(false);
     setFile(null);
+    setJournalContent(null);
+    setCostEstimate(null);
+    setTierStats(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
+
+  // Update cost estimate when auth status changes
+  useEffect(() => {
+    if (journalContent) {
+      setCostEstimate(estimateCost(journalContent, isAuthenticated, 0));
+    }
+  }, [isAuthenticated, journalContent]);
 
   // Action bar component for report view
   const ActionBar = () => (
@@ -464,6 +530,21 @@ export default function Home() {
                     ? file.name
                     : "Select or drop journal file"}
               </button>
+            )}
+
+            {/* Cost estimate */}
+            {costEstimate && !isWorking && (
+              <div className="mt-3 flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400">
+                <span>{costEstimate.formattedCount}</span>
+                <span className="flex items-center gap-2">
+                  <span>Est. cost: {costEstimate.formattedCost}</span>
+                  {needsHierarchicalProcessing(costEstimate.characterCount) && (
+                    <span className="text-neutral-400 dark:text-neutral-500">
+                      ({costEstimate.breakdown})
+                    </span>
+                  )}
+                </span>
+              </div>
             )}
           </div>
 

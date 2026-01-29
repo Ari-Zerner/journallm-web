@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getReport } from "@/lib/claude-prompter";
+import { getReport, ReportResult } from "@/lib/claude-prompter";
+import { auth } from "@/lib/auth";
 
 export const maxDuration = 300; // 5 minutes for Vercel Pro
 
@@ -31,12 +32,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate report
+    // Get access token for authenticated users (for summary caching)
+    const session = await auth();
+    const accessToken = session?.accessToken || null;
+
+    // Generate report with hierarchical summarization
     const topics = Array.isArray(customTopics) ? customTopics : [];
     const includeStandard = includeStandardReport !== false;
-    const report = await getReport(journal, apiKey, formattedDate, topics, includeStandard);
 
-    return NextResponse.json({ report });
+    const result = await getReport({
+      journalXml: journal,
+      apiKey,
+      formattedDate,
+      customTopics: topics,
+      includeStandardReport: includeStandard,
+      accessToken,
+    }) as ReportResult;
+
+    return NextResponse.json({
+      report: result.report,
+      tierStats: result.tierStats,
+    });
   } catch (error) {
     console.error("Error generating report:", error);
 

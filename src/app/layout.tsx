@@ -4,6 +4,9 @@ import { SessionProvider } from "@/components/SessionProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
+// Disable static prerendering for this app (uses auth)
+export const dynamic = "force-dynamic";
+
 const serif = Source_Serif_4({
   subsets: ["latin"],
   display: "swap",
