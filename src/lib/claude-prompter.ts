@@ -6,7 +6,7 @@ const MODEL = "claude-sonnet-4-5";
 const MAX_CONTEXT_TOKENS = 200000;
 const RESPONSE_BUFFER_TOKENS = 30000;
 const MAX_JOURNAL_TOKENS = MAX_CONTEXT_TOKENS - RESPONSE_BUFFER_TOKENS;
-const MAX_OUTPUT_TOKENS = 4000;
+const MAX_OUTPUT_TOKENS = 16000;
 
 // Load prompts at module level
 let systemPrompt: string;
@@ -30,11 +30,19 @@ function buildCustomTopicsPrompt(topics: string[]): string {
   const topicSections = topics
     .map(
       (topic, i) =>
-        `<section heading="Custom Topic: ${topic}">\nAddress this specific question or topic based on my journal entries. Provide thoughtful analysis and actionable advice.\n</section>`
+        `<section heading="Custom Topic ${i + 1}: ${topic}">\nAddress this specific question or topic based on my journal entries. Provide thoughtful analysis and actionable advice.\n</section>`
     )
     .join("\n\n");
 
-  return `\n\n<custom_topics>\nThe user has requested that you address the following specific topics in addition to the standard report sections. Add these as separate sections BEFORE the "Context for JournaLens" section:\n\n${topicSections}\n</custom_topics>`;
+  return `\n\n<custom_topics>
+IMPORTANT: The user has requested ${topics.length} custom topic(s) below. You MUST address ALL of them - do not skip any.
+
+Add these as separate sections BEFORE the "Context for JournaLens" section:
+
+${topicSections}
+
+Remember: Every custom topic above MUST have its own dedicated section in your response. These are specifically requested by the user and are a priority.
+</custom_topics>`;
 }
 
 /**
