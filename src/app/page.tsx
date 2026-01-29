@@ -66,11 +66,6 @@ export default function Home() {
 
   const isAuthenticated = authStatus === "authenticated";
 
-  // Show loading state during SSR and initial hydration
-  if (!mounted) {
-    return <LoadingState />;
-  }
-
   const handleSubmit = useCallback(async () => {
     if (!file) {
       setError("Please select a file");
@@ -332,6 +327,11 @@ export default function Home() {
       setCostEstimate(estimateCost(journalContent, isAuthenticated, 0));
     }
   }, [isAuthenticated, journalContent]);
+
+  // Show loading state during SSR and initial hydration
+  if (!mounted) {
+    return <LoadingState />;
+  }
 
   // Action bar component for report view
   const ActionBar = () => (
