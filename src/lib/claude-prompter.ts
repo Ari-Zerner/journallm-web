@@ -20,26 +20,14 @@ function loadPrompts() {
   }
 }
 
-/**
- * Format current date for report header
- */
-function formatDate(): string {
-  const now = new Date();
-  const options: Intl.DateTimeFormatOptions = {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  };
-  return now.toLocaleDateString("en-US", options);
-}
 
 /**
  * Generate a report from journal entries using Claude
  */
 export async function getReport(
   journalXml: string,
-  apiKey: string
+  apiKey: string,
+  formattedDate: string
 ): Promise<string> {
   loadPrompts();
 
@@ -64,7 +52,7 @@ export async function getReport(
       "...older entries truncated...\n\n" + journalXml.slice(truncationIndex);
   }
 
-  const assistantPrefill = `# JournaLens Advice for ${formatDate()}`;
+  const assistantPrefill = `# JournaLens Advice for ${formattedDate}`;
 
   const response = await client.messages.create({
     model: MODEL,

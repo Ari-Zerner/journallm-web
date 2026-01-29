@@ -63,10 +63,16 @@ export default function Home() {
 
       // Send extracted text to server
       setStatus("processing");
+      const formattedDate = new Date().toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ journal: journalContent, apiKey }),
+        body: JSON.stringify({ journal: journalContent, apiKey, formattedDate }),
       });
 
       const data = await response.json();
