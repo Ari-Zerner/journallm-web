@@ -7,8 +7,14 @@ import { extractJournal } from "@/lib/journal-extractor.client";
 import { AuthButton } from "@/components/AuthButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ReportsDrawer } from "@/components/ReportsDrawer";
+import {
+  parseJournalXml,
+  partitionIntoTiers,
+  TieredJournal,
+} from "@/lib/journal-tiers";
+import { estimateCost, formatCost, CostEstimate } from "@/lib/cost-estimator";
 
-type Status = "idle" | "extracting" | "processing" | "done" | "error";
+type Status = "idle" | "extracting" | "analyzing" | "summarizing" | "generating" | "saving" | "done" | "error";
 
 const ACCEPTED_TYPES = ".zip,.json,.xml,.md,.txt";
 
@@ -39,6 +45,16 @@ export default function Home() {
   const [customTopics, setCustomTopics] = useState<string[]>([]);
   const [customTopicsOnly, setCustomTopicsOnly] = useState(false);
   const [newTopic, setNewTopic] = useState("");
+  const [journalStats, setJournalStats] = useState<TieredJournal | null>(null);
+  const [costEstimate, setCostEstimate] = useState<CostEstimate | null>(null);
+  const [processingStats, setProcessingStats] = useState<{
+    cachedBatches?: number;
+    newSummaries?: number;
+    haikuInputTokens?: number;
+    haikuOutputTokens?: number;
+    opusInputTokens?: number;
+    opusOutputTokens?: number;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialLoadDone = useRef(false);
 
@@ -58,14 +74,35 @@ export default function Home() {
     setError(null);
     setReportSaved(false);
     setViewingPastReport(false);
+    setProcessingStats(null);
 
     try {
       // Extract journal content client-side
       setStatus("extracting");
       const journalContent = await extractJournal(file);
 
+      // Analyze journal structure
+      setStatus("analyzing");
+      const entries = parseJournalXml(journalContent);
+      const tiered = partitionIntoTiers(entries);
+      setJournalStats(tiered);
+
+      // Update cost estimate with actual data
+      const estimate = estimateCost({
+        tier1Entries: tiered.tier1,
+        tier2Batches: tiered.tier2Batches,
+        tier3Batches: tiered.tier3Batches,
+      });
+      setCostEstimate(estimate);
+
+      // Show summarizing stage if there are batches to process
+      if (tiered.tier2Batches.length > 0 || tiered.tier3Batches.length > 0) {
+        setStatus("summarizing");
+      } else {
+        setStatus("generating");
+      }
+
       // Send extracted text to server
-      setStatus("processing");
       const formattedDate = new Date().toLocaleDateString("en-US", {
         weekday: "long",
         year: "numeric",
@@ -84,13 +121,18 @@ export default function Home() {
         throw new Error(data.error || "Something went wrong");
       }
 
+      // Store processing stats
+      if (data.stats) {
+        setProcessingStats(data.stats);
+      }
+
       const newReportId = generateReportId();
       setReport(data.report);
       setReportId(newReportId);
-      setStatus("done");
 
       // Auto-save to Drive if authenticated
       if (isAuthenticated) {
+        setStatus("saving");
         setIsSaving(true);
         try {
           const saveRes = await fetch("/api/drive/reports", {
@@ -112,6 +154,8 @@ export default function Home() {
           setIsSaving(false);
         }
       }
+
+      setStatus("done");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setStatus("error");
@@ -139,10 +183,31 @@ export default function Home() {
   }, []);
 
   const handleFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files?.[0]) {
-        setFile(e.target.files[0]);
+        const selectedFile = e.target.files[0];
+        setFile(selectedFile);
         setError(null);
+        setJournalStats(null);
+        setCostEstimate(null);
+
+        // Pre-analyze the file to show cost estimate
+        try {
+          const journalContent = await extractJournal(selectedFile);
+          const entries = parseJournalXml(journalContent);
+          const tiered = partitionIntoTiers(entries);
+          setJournalStats(tiered);
+
+          const estimate = estimateCost({
+            tier1Entries: tiered.tier1,
+            tier2Batches: tiered.tier2Batches,
+            tier3Batches: tiered.tier3Batches,
+          });
+          setCostEstimate(estimate);
+        } catch (err) {
+          // File analysis failed, but we can still try to process it
+          console.error("Failed to pre-analyze file:", err);
+        }
       }
     },
     []
@@ -264,6 +329,9 @@ export default function Home() {
     setReportSaved(false);
     setViewingPastReport(false);
     setFile(null);
+    setJournalStats(null);
+    setCostEstimate(null);
+    setProcessingStats(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
@@ -353,7 +421,7 @@ export default function Home() {
   }
 
   const isReady = file && apiKey.trim();
-  const isWorking = status === "extracting" || status === "processing";
+  const isWorking = status === "extracting" || status === "analyzing" || status === "summarizing" || status === "generating" || status === "saving";
 
   // Upload view
   return (
@@ -439,15 +507,40 @@ export default function Home() {
             {isWorking ? (
               <div className="py-8 text-center">
                 <p className="text-neutral-500 dark:text-neutral-400 mb-2">
-                  {status === "extracting"
-                    ? "Reading journal..."
-                    : "Generating insights..."}
+                  {status === "extracting" && "Reading journal..."}
+                  {status === "analyzing" && "Analyzing entries..."}
+                  {status === "summarizing" && "Summarizing older entries..."}
+                  {status === "generating" && "Generating insights..."}
+                  {status === "saving" && "Saving to Drive..."}
                 </p>
                 <p className="text-sm text-neutral-400 dark:text-neutral-500">
-                  {status === "extracting"
-                    ? "Extracting entries from your export"
-                    : "This takes a minute or two"}
+                  {status === "extracting" && "Extracting entries from your export"}
+                  {status === "analyzing" && "Partitioning entries by age"}
+                  {status === "summarizing" && "Using Haiku to condense historical entries"}
+                  {status === "generating" && "Opus is crafting your personalized report"}
+                  {status === "saving" && "Saving report to Google Drive"}
                 </p>
+                {/* Progress indicator */}
+                <div className="flex justify-center gap-1 mt-4">
+                  {["extracting", "analyzing", "summarizing", "generating", "saving"].map((stage, i) => {
+                    const stages = ["extracting", "analyzing", "summarizing", "generating", "saving"];
+                    const currentIdx = stages.indexOf(status);
+                    const isComplete = i < currentIdx;
+                    const isCurrent = stage === status;
+                    return (
+                      <div
+                        key={stage}
+                        className={`w-2 h-2 rounded-full transition-colors ${
+                          isComplete
+                            ? "bg-green-500"
+                            : isCurrent
+                              ? "bg-neutral-500 animate-pulse"
+                              : "bg-neutral-200 dark:bg-neutral-700"
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
               </div>
             ) : (
               <button
@@ -536,6 +629,35 @@ export default function Home() {
                 >
                   Add
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Cost estimate */}
+          {!isWorking && journalStats && costEstimate && (
+            <div className="p-4 bg-neutral-50 dark:bg-neutral-800 rounded text-sm">
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-neutral-500 dark:text-neutral-400">Journal analysis</span>
+                <span className="font-medium text-neutral-700 dark:text-neutral-300">
+                  Est. {formatCost(costEstimate.totalCost)}
+                </span>
+              </div>
+              <div className="text-xs text-neutral-400 dark:text-neutral-500 space-y-1">
+                <p>{journalStats.stats.totalEntries} entries total</p>
+                {journalStats.stats.tier1Entries > 0 && (
+                  <p>{journalStats.stats.tier1Entries} recent (full text to Opus)</p>
+                )}
+                {journalStats.tier2Batches.length > 0 && (
+                  <p>{journalStats.tier2Batches.length} weekly batches ({journalStats.stats.tier2Entries} entries)</p>
+                )}
+                {journalStats.tier3Batches.length > 0 && (
+                  <p>{journalStats.tier3Batches.length} monthly batches ({journalStats.stats.tier3Entries} entries)</p>
+                )}
+                {costEstimate.cachedBatches > 0 && (
+                  <p className="text-green-600 dark:text-green-500">
+                    {costEstimate.cachedBatches} batches cached (no Haiku cost)
+                  </p>
+                )}
               </div>
             </div>
           )}
