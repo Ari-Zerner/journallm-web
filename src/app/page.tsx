@@ -47,6 +47,8 @@ export default function Home() {
   const [newTopic, setNewTopic] = useState("");
   const [journalStats, setJournalStats] = useState<TieredJournal | null>(null);
   const [costEstimate, setCostEstimate] = useState<CostEstimate | null>(null);
+  const [analysisStatus, setAnalysisStatus] = useState<"idle" | "analyzing" | "done" | "error">("idle");
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [processingStats, setProcessingStats] = useState<{
     cachedBatches?: number;
     newSummaries?: number;
@@ -190,6 +192,8 @@ export default function Home() {
         setError(null);
         setJournalStats(null);
         setCostEstimate(null);
+        setAnalysisStatus("analyzing");
+        setAnalysisError(null);
 
         // Pre-analyze the file to show cost estimate
         try {
@@ -204,9 +208,12 @@ export default function Home() {
             tier3Batches: tiered.tier3Batches,
           });
           setCostEstimate(estimate);
+          setAnalysisStatus("done");
         } catch (err) {
           // File analysis failed, but we can still try to process it
           console.error("Failed to pre-analyze file:", err);
+          setAnalysisStatus("error");
+          setAnalysisError(err instanceof Error ? err.message : "Failed to analyze file");
         }
       }
     },
@@ -332,6 +339,8 @@ export default function Home() {
     setJournalStats(null);
     setCostEstimate(null);
     setProcessingStats(null);
+    setAnalysisStatus("idle");
+    setAnalysisError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
@@ -633,7 +642,20 @@ export default function Home() {
             </div>
           )}
 
-          {/* Cost estimate */}
+          {/* Cost estimate / Analysis status */}
+          {!isWorking && file && analysisStatus === "analyzing" && (
+            <div className="p-4 bg-neutral-50 dark:bg-neutral-800 rounded text-sm text-neutral-500 dark:text-neutral-400">
+              Analyzing journal...
+            </div>
+          )}
+          {!isWorking && file && analysisStatus === "error" && (
+            <div className="p-4 bg-neutral-50 dark:bg-neutral-800 rounded text-sm">
+              <p className="text-neutral-500 dark:text-neutral-400">Could not analyze journal structure</p>
+              {analysisError && (
+                <p className="text-xs text-red-500 dark:text-red-400 mt-1">{analysisError}</p>
+              )}
+            </div>
+          )}
           {!isWorking && journalStats && costEstimate && (
             <div className="p-4 bg-neutral-50 dark:bg-neutral-800 rounded text-sm">
               <div className="flex justify-between items-start mb-2">
