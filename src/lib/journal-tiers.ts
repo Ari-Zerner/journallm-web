@@ -61,10 +61,10 @@ export function parseJournalXml(xml: string): ParsedEntry[] {
       }
     }
 
-    // Try timestamp
+    // Try created/created_at/timestamp
     if (!date) {
       const timestampMatch = entryContent.match(
-        /<(?:created_at|timestamp)>([^<]+)<\/(?:created_at|timestamp)>/i
+        /<(?:created|created_at|timestamp)>([^<]+)<\/(?:created|created_at|timestamp)>/i
       );
       if (timestampMatch) {
         date = parseDate(timestampMatch[1].trim());
